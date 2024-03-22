@@ -42,6 +42,10 @@ encoded_labels = encoder.fit_transform(labels)
 
 train_sentences, test_sentences, train_labels, test_labels = train_test_split(reviews, encoded_labels, test_size=0.2, stratify = encoded_labels)
 
+class_weights = {0:4,
+                1:3,
+                2:1}
+
 vocab_size = 5068 
 oov_tok = ""
 max_len = 300
@@ -98,3 +102,55 @@ model.compile(loss='sparse_categorical_crossentropy',
 # model.summary()
 num_epochs = 5
 history = model.fit(train_padded, train_labels, epochs=num_epochs,verbose=1, validation_split=0.1)
+
+
+df1 = pd.read_csv("sent_valid.csv")
+
+df1['text'] = df1['text'].apply(lambda x: ' '.join([word for word in x.split() if word not in (stop_words)]))
+url_regex = "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\), ]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+handle_regex= "^@?(\w){1,15}$"
+
+
+df1['text']=df1['text'].str.replace(url_regex, '')
+df1['text']=df1['text'].str.replace(handle_regex, '')
+
+w_tokenizer = nltk.tokenize.WhitespaceTokenizer()
+lemmatizer = nltk.stem.WordNetLemmatizer()
+def lemmatize_text(text):
+    st = ""
+    for w in w_tokenizer.tokenize(text):
+        st = st + lemmatizer.lemmatize(w) + " "
+    return st
+df1['text'] = df1.text.apply(lemmatize_text)
+
+test_sentences = df['text'].values
+labels = df['label'].values
+encoder = LabelEncoder()
+
+test_labels = encoder.fit_transform(labels)
+
+tokenizer = Tokenizer(num_words = vocab_size, oov_token=oov_tok)
+
+tokenizer = Tokenizer(num_words = vocab_size, oov_token=oov_tok)
+tokenizer.fit_on_texts(test_sentences)
+word_index = tokenizer.word_index
+
+test_sequences = tokenizer.texts_to_sequences(train_sentences)
+test_padded = pad_sequences(train_sequences, padding='post', maxlen=max_len)
+
+prediction = model.predict(test_padded)
+pred_labels = []
+pred = np.asarray(prediction)
+pred = np.rint(pred).astype(int)
+print(pred)
+
+sentence = "The stock value is very very good!"
+sequence = tokenizer.texts_to_sequences(sentence)
+padded = pad_sequences(sequence, padding='post', maxlen=max_len)
+prediction = model.predict(padded)
+
+pred_labels = []
+pred = np.asarray(prediction)
+#pred = np.rint(pred).astype(int)
+avg = pred.mean()
+print(avg)
